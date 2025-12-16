@@ -8,14 +8,14 @@ training_images, testing_images = training_images / 255, testing_images / 255
 
 class_names = ['Plane', 'Car', 'Bird', 'Cat', 'Deer', 'Dog', 'Frog', 'Horse', 'Ship', 'Truck']
 
-for i in range(16):
-    plt.subplot(4, 4, i+1)
-    plt.xticks([])
-    plt.yticks([])
-    plt.imshow(training_images[i], cmap=plt.cm.binary)
-    plt.xlabel(class_names[training_labels[i][0]])
+# for i in range(16):
+#     plt.subplot(4, 4, i+1)
+#     plt.xticks([])
+#     plt.yticks([])
+#     plt.imshow(training_images[i], cmap=plt.cm.binary)
+#     plt.xlabel(class_names[training_labels[i][0]])
 
-plt.show()
+# plt.show()
 
 training_images = training_images[:20000]
 training_labels = training_labels[:20000]
@@ -42,4 +42,13 @@ testing_label = testing_label[:4000]
 
 # model.save('image_classification.keras')
 
-model = models.load_mode('image_classification.keras')
+model = models.load_model('image_classification.keras')
+
+img = cv.imread('Image Classification/download.png')
+img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
+
+plt.imshow(img, cmap=plt.cm.binary)
+
+prediction = model.predict(np.array([img]) / 255)
+index = np.argmax(prediction)
+print(f"Prediction is {class_names[index]}")
