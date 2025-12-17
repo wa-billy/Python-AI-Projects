@@ -4,6 +4,7 @@ import cv2 as cv
 import os 
 import PIL.Image, PIL.ImageTk
 import camera
+import model
 
 class App:
 
@@ -14,7 +15,7 @@ class App:
 
         self.counters = [1, 1]
 
-        # self.model = 
+        self.model = model.Model()
 
         self.auto_predict = False
 
@@ -44,7 +45,7 @@ class App:
                                        command=lambda: self.save_for_class(1))
         self.btn_class_one.pack(anchor=tk.CENTER, expand=True)
 
-        self.btn_class_two = tk.Button(self.window, text=self.classname_one, width=50,
+        self.btn_class_two = tk.Button(self.window, text=self.classname_two, width=50,
                                        command=lambda: self.save_for_class(2))
         self.btn_class_two.pack(anchor=tk.CENTER, expand=True)
 
@@ -88,13 +89,12 @@ class App:
                     os.unlink(file_path)
 
         self.counters = [1, 1]
-        # self.model - model.Model()
+        self.model - model.Model()
         self.class_label.config(text='CLASS')
 
     def update(self):
         if self.auto_predict:
-            # self.predict()
-            pass
+            self.predict()
 
         ret, frame = self.camera.get_frame()
 
@@ -104,3 +104,16 @@ class App:
 
         self.window.after(self.delay, self.update)
         
+
+    def predict(self):
+        frame = self.camera.get_frame()
+        prediction = self.model.predict(frame)
+
+        if prediction == 1:
+            self.class_label.config(text=self.classname_one)
+            return self.classname_one
+
+        if prediction == 2:
+            self.class_label.config(text=self.classname_two)
+            return self.classname_two
+
