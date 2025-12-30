@@ -18,8 +18,8 @@ class Model:
             img_list = np.append(img_list, [img])
             class_list = np.append(class_list, 1)
 
-        for i in range(1, counters[0]):
-            img = cv.imread(f'1/frame{i}.jpg')[:, :, 0]
+        for i in range(1, counters[1]):
+            img = cv.imread(f'2/frame{i}.jpg')[:, :, 0]
             img = img.reshape(16800)
             img_list = np.append(img_list, [img])
             class_list = np.append(class_list, 2)
