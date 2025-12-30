@@ -38,7 +38,7 @@ class ChatbotAssistant:
         self.documents = []
         self.vocabulary = []
         self.intents = []
-        self.intents_response = []
+        self.intents_response = {}
 
         self.function_mappings = function_mappings
 
@@ -53,3 +53,72 @@ class ChatbotAssistant:
         words = [lemmatizer.lemmatize(word.lower()) for word in words]
 
         return words
+    
+    def bag_of_words(self, words):
+        return [1 if word in words else 0 for word in self.vocabulary]
+    
+    def parse_intents(self):
+        lemmatizer = nltk.WordNetLemmatizer()
+
+        if os.path.exists(self.intents_path):
+            with open(self.intents_path, 'r') as f:
+                intents_data = json.load(f)
+
+            for intent in intents_data['intents']:
+                if intent['tag'] not in self.intents:
+                    self.intents.append(intent['tag'])
+                    self.intents_responses[intent['tag']] = intent['responses']
+
+                for pattern in self.intents['patterns']:
+                    pattern_words = self.tokenize_lemmatize(pattern)
+                    self.vocabulary.extend(pattern_words)
+                    self.documents.append((pattern_words, intent['tag']))
+
+                self.vocabulary = sorted(set(self.vocabulary))
+
+    def prepare_data(self):
+        bags = []
+        indices = []
+
+        for document in self.documents:
+            words = document[0]
+            bag = self.bag_of_words(words, self.vocabulary)
+
+            intent_index = self.intents.index(document[1])
+
+            bags.append(bag)
+            indices.append(intent_index)
+
+        self.X = np.array(bags)
+        self.y = np.array(indices)
+
+    def train_model(self, batch_size, lr, epochs):
+        X_tensor = torch.tensor(self.X, dtype=torch.float32)
+        y_tensor = torch.tensor(self.y, dtype=torch.long)
+
+        dataset = TensorDataset(X_tensor, y_tensor)
+        loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+
+        self.model = ChatbotModel(self.X.shape[1], len(self.intents))
+
+        criterion = nn.CrossEntropyLoss()
+        optimizer = nn.AdaptiveMaxPool1d(self.model.parameters(), lr=lr)
+
+        for epoch in range(epochs):
+            running_loss = 0.0
+
+            for batch_X, batch_y in loader:
+                optimizer.zero_grad()
+                outputs = self.model(batch_X)
+                loss = criterion(outputs, batch_y)
+                loss.backward()
+                optimizer.step()
+                running_loss += loss
+
+            print(f"Epoch {epoch+1}: Loss: {running_loss / len(loader):.4f}")
+
+    def save_model(self, model_path, dimension_path):
+        torch.save(self.model.state_dict(), model_path)
+
+        with open(dimension_path, 'w') as f:
+            json.dump({ 'input_size': self.X.shape[1], 'output_size': len(self.intents) }, f)
