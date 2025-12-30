@@ -29,6 +29,8 @@ class ChatbotModel(nn.Module):
         X = self.dropout(X)
         X = self.fc3(X)
 
+        return X
+
 class ChatbotAssistant:
 
     def __init__(self, intents_path, function_mappings = None):
@@ -67,9 +69,9 @@ class ChatbotAssistant:
             for intent in intents_data['intents']:
                 if intent['tag'] not in self.intents:
                     self.intents.append(intent['tag'])
-                    self.intents_responses[intent['tag']] = intent['responses']
+                    self.intents_response[intent['tag']] = intent['responses']
 
-                for pattern in self.intents['patterns']:
+                for pattern in intent['patterns']:
                     pattern_words = self.tokenize_lemmatize(pattern)
                     self.vocabulary.extend(pattern_words)
                     self.documents.append((pattern_words, intent['tag']))
@@ -82,7 +84,7 @@ class ChatbotAssistant:
 
         for document in self.documents:
             words = document[0]
-            bag = self.bag_of_words(words, self.vocabulary)
+            bag = self.bag_of_words(words)
 
             intent_index = self.intents.index(document[1])
 
@@ -102,7 +104,7 @@ class ChatbotAssistant:
         self.model = ChatbotModel(self.X.shape[1], len(self.intents))
 
         criterion = nn.CrossEntropyLoss()
-        optimizer = nn.AdaptiveMaxPool1d(self.model.parameters(), lr=lr)
+        optimizer = optim.Adam(self.model.parameters(), lr=lr)
 
         for epoch in range(epochs):
             running_loss = 0.0
@@ -122,3 +124,65 @@ class ChatbotAssistant:
 
         with open(dimension_path, 'w') as f:
             json.dump({ 'input_size': self.X.shape[1], 'output_size': len(self.intents) }, f)
+
+    def load_model(self, model_path, dimension_path):
+        with open(dimension_path, 'r') as f:
+            dimensions = json.load(f)
+
+        self.model = ChatbotModel(dimensions['input_size'], dimensions['output_size'])
+        self.model.load_state_dict(torch.load(model_path, weights_only=True))
+
+    def process_message(self, input_message):
+        words = self.tokenize_lemmatize(input_message)
+        bag = self.bag_of_words(words)
+
+        bag_tensor = torch.tensor([bag], dtype=torch.float32)
+
+        self.model.eval()
+        with torch.no_grad():
+            predictions = self.model(bag_tensor)
+
+        predicted_class_index = torch.argmax(predictions, dim=1).item()
+        predicted_intent = self.intents[predicted_class_index]
+
+        if self.function_mappings:
+            if predicted_intent in self.function_mappings:
+                self.function_mappings[predicted_intent]()
+
+            if self.intents_response[predicted_intent]:
+                return random.choice(self.intents_response[predicted_intent])
+            else:
+                return None
+            
+def get_stock():
+    stocks = ['APPL', 'META', 'NVDA', 'GS', 'MSFT']
+
+    print(random.sample(stocks, 3))
+
+def get_source():
+    sources = ['Nueralnine', 'freeCodecamp', 'Nicholas']
+
+    print(random.sample(sources, 3))
+
+if __name__ == '__main__':
+    # assistant = ChatbotAssistant(intents_path='Chatbot/intents.json', function_mappings={'stocks': get_stock})
+    # assistant.parse_intents()
+    # assistant.prepare_data()
+    # assistant.train_model(batch_size=8, lr=0.001, epochs=100)
+
+    # assistant.save_model('Chatbot/chatbot_model.pth', 'Chatbot/dimensions.json')
+
+    assistant = ChatbotAssistant('Chatbot/intents.json', function_mappings={
+        'stocks': get_stock,
+        'resource': get_source
+    })
+    assistant.parse_intents()
+    assistant.load_model('Chatbot/chatbot_model.pth', 'Chatbot/dimensions.json')
+
+    while True:
+        message = input('Enter your message: ')
+
+        if message == '/q':
+            break
+
+        print(assistant.process_message(message))
