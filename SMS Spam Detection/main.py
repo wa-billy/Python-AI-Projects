@@ -3,6 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import tensorflow as tf
+import keras
 from keras import layers, Model
 from keras.layers import TextVectorization
 from sklearn.model_selection import train_test_split
@@ -80,3 +81,24 @@ model_1.fit(
     epochs=5,
     validation_data=(X_test_np, y_test_np)
 )
+
+def predict_model(model, text):
+    # if isinstance(text, str):
+    #     text = [text]
+
+    text = np.array(text)
+    
+    prediction_prob = model.predict(text)
+    prediction_label = 'Spam' if prediction_prob[0][0] >= 0.5 else 'Ham'
+    confidence = prediction_prob[0][0] if prediction_label == 'Spam' else 1 - prediction_prob[0][0]
+
+    return prediction_label, confidence
+
+while True:
+    i = str(input("Enter sentence : "))
+    
+    if i == 'q':
+        break
+    
+    predict, confidence = predict_model(model_1, i)
+    print(f'{predict} : {confidence * 100:.2f}%')
